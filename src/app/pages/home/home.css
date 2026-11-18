@@ -1,0 +1,31 @@
+.home-container {
+  background: #f4f6f9;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.home-content {
+  text-align: center;
+  z-index: 10; /* Ensures it sits above any background layers */
+}
+
+.start-btn {
+  padding: 12px 24px;
+  background: #7F77DD;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  pointer-events: auto; /* Ensures clickability */
+  transition: background 0.2s;
+}
+
+.start-btn:hover {
+  background: #6d65c9;
+}

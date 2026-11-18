@@ -1,0 +1,227 @@
+<div class="home-container" style="margin-top: 0; padding-top: 0;">
+
+  <!-- Clean unified header (Without OCR Verification) -->
+  <header style="display: flex; justify-content: space-between; align-items: center; padding: 12px 30px; background: #fff; border-bottom: 1px solid #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0;">
+    
+    <!-- Left: Back Button + Sangrah Logo -->
+    <div style="display: flex; align-items: center; gap: 15px;">
+      <button (click)="goBackToSelect()" style="padding: 6px 12px; cursor: pointer; background: #7F77DD; color: white; border: none; border-radius: 4px; font-size: 13px; font-weight: 600;">← Back</button>
+      
+      <!-- Sangrah Logo -->
+      <div style="display: flex; align-items: baseline; font-size: 24px; font-weight: bold; color: #555; letter-spacing: -0.5px;">
+        संग्रह
+        <div style="display: flex; gap: 3px; margin-left: 4px;">
+          <span style="width: 6px; height: 6px; background-color: #e53935; border-radius: 50%; display: inline-block;"></span>
+          <span style="width: 6px; height: 6px; background-color: #fb8c00; border-radius: 50%; display: inline-block;"></span>
+          <span style="width: 6px; height: 6px; background-color: #fbc02d; border-radius: 50%; display: inline-block;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: RCO Title -->
+    <div style="font-size: 18px; font-weight: 500; color: #222;">
+      RCO
+    </div>
+
+    <!-- Right: Menu icon -->
+    <div style="display: flex; align-items: center; font-size: 18px; font-weight: bold; color: #444; cursor: pointer;">
+      ⋮
+    </div>
+  </header>
+
+  <div class="top-half">
+    
+    <!-- OCR Verification label near Search Bar -->
+    <div style="display: flex; justify-content: flex-end; max-width: 900px; margin: 10px auto 0 auto; padding: 0 20px;">
+      <span style="font-size: 14px; font-weight: 500; color: #555; background: #f0f0f5; padding: 4px 10px; border-radius: 4px;">
+        OCR Verification
+      </span>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="global-search-section" style="margin-top: 5px;">
+      <div class="search-box">
+        <input
+          #anInput
+          class="an-input"
+          type="text"
+          placeholder="Enter AN number"
+          [value]="state.lastSearchedAn"
+          (keyup.enter)="onGo(anInput.value)"
+          [disabled]="isLoading"
+        />
+        <button (click)="onGo(anInput.value)" [disabled]="isLoading">
+          {{ isLoading ? 'LOADING...' : 'GO' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Original Image Area with Navigation Arrows -->
+    <ng-container *ngIf="pageData?.originalImage as originalImage">
+      <div class="image-scroll-area">
+        <div class="image-container">
+
+          <button
+            class="img-nav-btn"
+            [class.loading]="isNavigating"
+            (click)="goToPrevImage()"
+            [disabled]="!hasPrevImage"
+          >‹</button>
+
+          <div class="image-wrapper" #imageWrapper [class.navigating]="isNavigating">
+            <img
+              #originalImg
+              [src]="originalImage"
+              alt="Original page image"
+              class="original-image"
+              [class.slide-left]="slideDirection === 'left'"
+              [class.slide-right]="slideDirection === 'right'"
+              (load)="onImageLoad()"
+            />
+            <canvas #boundingCanvas class="bounding-canvas"></canvas>
+          </div>
+
+          <button
+            class="img-nav-btn"
+            [class.loading]="isNavigating"
+            (click)="goToNextImage()"
+            [disabled]="!hasNextImage"
+          >›</button>
+
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- BOTTOM HALF -->
+  <ng-container *ngIf="!isLoading && pageData as data">
+    <div class="bottom-half">
+      <div class="scrollable-content">
+
+        <!-- Zoom Controls Bar -->
+        <div class="zoom-controls-bar">
+          <button class="zoom-btn" (click)="zoomOut()" [disabled]="zoomLevel <= minZoom" title="Zoom Out">−</button>
+          <span class="zoom-level">{{ (zoomLevel * 100).toFixed(0) }}%</span>
+          <button class="zoom-btn" (click)="zoomIn()" [disabled]="zoomLevel >= maxZoom" title="Zoom In">+</button>
+          <button class="zoom-btn zoom-reset" (click)="resetZoom()" title="Reset Zoom">↺</button>
+        </div>
+
+        <!-- Pagination info -->
+        <div class="pagination-info-center">
+          Showing {{ data.currentPage }} of {{ data.totalPages }} results for AN: {{ data.an }}
+        </div>
+
+        <!-- Pagination Bar -->
+        <div class="pagination-bar" *ngIf="data.totalPages > 1">
+          <button class="pg-btn pg-arrow" (click)="goToPrevImage()" [disabled]="!hasPrevImage" [class.loading]="isNavigating">‹</button>
+          <ng-container *ngFor="let pg of getPageNumbers()">
+            <button
+              *ngIf="pg !== -1"
+              class="pg-btn"
+              [class.pg-active]="pg === data.currentPage"
+              (click)="loadImageAtIndex(state.lastSearchedAn, pg - 1)"
+              [disabled]="isNavigating"
+            >{{ pg }}</button>
+            <span *ngIf="pg === -1" class="pg-dots">...</span>
+          </ng-container>
+          <button class="pg-btn pg-arrow" (click)="goToNextImage()" [disabled]="!hasNextImage" [class.loading]="isNavigating">›</button>
+        </div>
+
+        <div class="select-all-bar" *ngIf="data.cutImages.length">
+          <button class="select-all-btn" (click)="selectAll()">Select All</button>
+          <button class="deselect-all-btn" (click)="deselectAll()">Deselect All</button>
+        </div>
+
+        <!-- Cut images with OCR Text, Extra fields, and Delete Button -->
+        <div class="cut-images-section" *ngIf="data.cutImages.length">
+          <div class="cut-item-container" *ngFor="let cut of data.cutImages" style="margin-bottom: 20px; background: #fafafa; padding: 12px; border-radius: 6px; border: 1px solid #e0e0e0;">
+            
+            <div class="cut-image-item" style="display: flex; align-items: center; justify-content: center;">
+              <div class="cut-image-wrapper" style="display: flex; align-items: center; gap: 12px;">
+                <img [src]="cut.imagePath" class="cut-image" />
+                
+                <select
+                  class="cut-image-dropdown"
+                  [value]="cutImageActions[cut.id] || ''"
+                  (change)="onActionChange(cut.id, $event)"
+                >
+                  <option value="">Action</option>  
+                  <option value="select">Select</option>
+                  <option value="polygon">Crop (polygon)</option>
+                </select>
+
+                <button 
+                  type="button"
+                  (click)="deleteCutImage(cut.id)" 
+                  title="Delete line" 
+                  style="position: static !important; opacity: 1 !important; visibility: visible !important; background: #e53935; color: white; border: none; width: 30px; height: 30px; border-radius: 4px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;"
+                >✕</button>
+              </div>
+            </div>
+
+            <!-- OCR Text and Extra empty fields directly below each box -->
+            <div class="ocr-extra-fields-section" style="margin-top: 10px; display: flex; gap: 15px; align-items: flex-end;">
+              <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size: 13px; font-weight: 600; color: #333;">OCR Text</label>
+                <input
+                  type="text"
+                  [(ngModel)]="ocrTextFields[cut.id]"
+                  placeholder="Enter OCR text..."
+                  style="width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; background: #fff;"
+                />
+              </div>
+              <div style="width: 180px; display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size: 13px; font-weight: 600; color: #333;">Extra</label>
+                <input
+                  type="text"
+                  [(ngModel)]="extraTextFields[cut.id]"
+                  placeholder="Extra..."
+                  style="width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; background: #fff;"
+                />
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Add Line / Update row with Approved & Unapprove Buttons -->
+        <div class="add-line-row" *ngIf="pageData">
+          <button class="add-line-btn">+ Add Line</button>
+        </div>
+
+        <div class="save-update-row" style="display: flex; gap: 12px; align-items: center;">
+          <button class="refresh-btn">Update</button>
+          
+          <button
+            class="approve-btn"
+            (click)="onApprove()"
+            style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;"
+          >
+            Approved
+          </button>
+
+          <button
+            class="unapprove-btn"
+            (click)="onUnapprove()"
+            style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;"
+          >
+            Unapprove
+          </button>
+        </div>
+
+        <!-- SAVE Button -->
+        <div class="next-button-section" style="margin: 20px 0;">
+          <button
+            class="next-button"
+            (click)="submitOcr()"
+            [disabled]="!canSubmit"
+          >
+            Save
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </ng-container>
+
+</div>
